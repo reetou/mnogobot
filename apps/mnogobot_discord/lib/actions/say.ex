@@ -1,6 +1,8 @@
 defmodule MnogobotDiscord.Actions.Say do
 
-  def execute(text) do
-    # execute here
+  alias Nostrum.Api
+
+  def execute(text_args, %{channel_id: channel_id}) do
+    Api.create_message!(channel_id, Enum.join(text_args))
   end
 end

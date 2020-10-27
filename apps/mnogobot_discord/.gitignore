@@ -21,4 +21,4 @@ erl_crash.dump
 
 # Ignore package tarball (built via "mix hex.build").
 mnogobot_discord-*.tar
-
+priv/actions_encoded.json

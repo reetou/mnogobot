@@ -8,10 +8,9 @@ defmodule MnogobotDiscord.Consumer do
     Message,
     User,
   }
-  alias Nostrum.Cache.Me
   alias MnogobotDiscord, as: Platform
   alias Mnogobot.Api
-  import Nostrum.Api
+  require Logger
 
   @platform "discord"
 
@@ -20,10 +19,17 @@ defmodule MnogobotDiscord.Consumer do
   end
 
   @impl true
-  def handle_event({:MESSAGE_CREATE, %{content: content, author: %{id: user_id}, channel_id: channel_id} = msg, _ws_state}) do
-    case Api.get_state(user_id, channel_id, @platform) do
-      nil -> Platform.init_dialogs(msg, [])
-      %State{} = state -> Platform.continue_dialog(state, msg)
+  def handle_event({:MESSAGE_CREATE, %Message{content: content, author: %User{id: user_id}, channel_id: channel_id} = msg, _ws_state}) do
+    Logger.debug("Message create")
+    unless msg.author.bot do
+      case Api.update_state(user_id, channel_id, @platform, content, Platform.dialogs()) do
+        :ignore ->
+          Logger.debug("Ignore state update")
+          :ignore
+        state ->
+          Logger.debug("Updating state")
+          Platform.trigger_dialog(state, msg)
+      end
     end
   end
 

@@ -4,10 +4,11 @@ defmodule Mnogobot.Dialog do
   alias Mnogobot.Dialog.Action
   alias Mnogobot.Dialog.Var
 
+  @derive Jason.Encoder
   embedded_schema do
     field :name, :string, null: false
-    field :trigger
-    field :each, {:array, :string}
+    field :trigger, Ecto.Any
+    field :each, Ecto.Any
     embeds_many :actions, Action
     embeds_many :vars, Var
   end
@@ -36,7 +37,7 @@ defmodule Mnogobot.Dialog do
   def check_trigger(text, trigger) when is_binary(trigger), do: text == trigger
   def check_trigger(text, ["starts_with", trigger]), do: String.starts_with?(text, trigger)
   def check_trigger(text, ["ends_with", trigger]), do: String.ends_with?(text, trigger)
-  def check_trigger(text, nil), do: true
+  def check_trigger(text, nil), do: false
 
   def for_message(text, dialogs) do
     dialogs

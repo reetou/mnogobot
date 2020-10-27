@@ -1,21 +1,15 @@
 defmodule MnogobotDSL do
   alias Mnogobot.Dialog
-  alias Mnogobot.Dialog.Action
-  alias Mnogobot.Dialog.Var
 
   defmacro __using__(_) do
     Module.register_attribute(__MODULE__, :dialogs, persist: true)
   end
 
   defmacro bot(do: {_, _, blocks}) do
-    IO.inspect(blocks, label: "Bot code")
-    Module.get_attribute(__CALLER__.module, :dialogs)
-    |> IO.inspect(label: "Bot attributes")
     dialogs =
       Enum.map(blocks, fn b ->
         Macro.expand(b, __ENV__)
       end)
-      |> IO.inspect(label: "Unquoted code")
     encoded = Jason.encode!(%{data: dialogs})
     quote do
       def actions do
@@ -25,16 +19,18 @@ defmodule MnogobotDSL do
       def actions_encoded do
         unquote(encoded)
       end
+
+      def save_actions do
+        File.write!("actions_encoded.json", unquote(encoded))
+      end
     end
   end
 
   defmacro dialog(name, do: code) do
-    IO.inspect(name, label: "Dialog compiling")
     create_dialog(name, code, [])
   end
 
   defmacro dialog(name, opts, do: code) do
-    IO.inspect(name, label: "Dialog compiling")
     create_dialog(name, code, opts)
   end
 
@@ -43,8 +39,11 @@ defmodule MnogobotDSL do
       name
       |> parse_string_val()
       |> String.downcase()
-    code_to_dialog(code, dialog_name(name), opts)
-    |> IO.inspect(label: "Created dialog")
+    dialog = code_to_dialog(code, dialog_name(name), opts)
+    [:green, "Created dialog with name", :cyan, " #{dialog.name}, ", :green, "containing #{length(dialog.actions)} actions, #{length(dialog.vars)} variables and trigger: #{inspect dialog.trigger}"]
+    |> IO.ANSI.format()
+    |> IO.puts()
+    dialog
   end
 
   defmacro starts_with(text) do
@@ -73,8 +72,6 @@ defmodule MnogobotDSL do
   defmacro sticker(text, opts \\ []) do
   end
 
-  defp code_to_dialog(_, _, opts \\ [])
-
   defp code_to_dialog({:__block__, _, lines}, fun_name, opts) do
     lines
     |> Enum.map(&parse_fun/1)
@@ -90,34 +87,50 @@ defmodule MnogobotDSL do
   def parse_string_val(x), do: "#{x}"
 
   def parse_action(name, args, store_to \\ nil) do
-    %{action: name, args: args, store_to: parse_var_name(store_to)}
+    %{
+      action: from_atom(name),
+      args: args,
+      store_to: parse_var_name(store_to)
+    }
+    |> filter_opts_from_args()
+  end
+
+  def filter_opts_from_args(%{args: args} = action) do
+    opts =
+      args
+      |> Enum.filter(fn a -> Keyword.keyword?(a) end)
+      |> case do
+          [] -> []
+          k -> Enum.reduce(k, fn x, acc -> Keyword.merge(acc, x) end)
+         end
+      |> Map.new()
+    other_args = Enum.filter(args, fn a -> Keyword.keyword?(a) == false end)
+    action
+    |> put_in([:args], other_args)
+    |> put_in([:opts], opts)
   end
 
   def parse_var(name, value) do
-    %{var: name, value: value}
+    %{var: from_atom(name), value: from_atom(value)}
   end
 
   def parse_var_name(nil), do: nil
   def parse_var_name(x), do: Atom.to_string(x)
 
   def get_dialog(defs, fun_name, opts) do
-    fun_name =
-      fun_name
-      |> action_fun_name()
-      |> String.to_atom()
+    fun_name = action_fun_name(fun_name)
     trigger = parse_trigger(opts[:trigger])
     each = parse_each(opts[:each])
     dialog = %{
-      name: fun_name,
-      each: each,
-      trigger: trigger,
+      name: from_atom(fun_name),
+      each: from_atom(each),
+      trigger: from_atom(trigger),
       actions: filter_actions(defs),
       vars: filter_vars(defs)
     }
     %Dialog{}
     |> Dialog.changeset(dialog)
     |> Dialog.format()
-    |> IO.inspect(label: "Dialog for #{fun_name} is")
   end
 
   def def_dialog(%{name: name} = dialog) do
@@ -157,7 +170,6 @@ defmodule MnogobotDSL do
   def parse_trigger({x, _, _}), do: "#{x}"
   def parse_trigger(nil), do: nil
   def parse_trigger(x) do
-    IO.inspect(x, label: "Trigger is")
     "#{x}"
   end
 
@@ -169,11 +181,9 @@ defmodule MnogobotDSL do
 
   def parse_binary_arg({:<<>>, _, args}) do
     Enum.map(args, &parse_binary_arg/1)
-    |> IO.inspect(label: "Parsed binary value")
   end
   def parse_binary_arg([{:<<>>, _, args} | t] = x) do
     Enum.map(x, &parse_binary_arg/1)
-    |> IO.inspect(label: "Parsed binary value array")
   end
   def parse_binary_arg({:"::", _, [{{:., _, _}, _, [{var, _, _}]}, {:binary, _, _}]}), do: "__VAR__#{var}"
   def parse_binary_arg(x) when is_binary(x), do: x
@@ -195,4 +205,11 @@ defmodule MnogobotDSL do
       end
     end)
   end
+
+  defp from_atom(nil), do: nil
+  defp from_atom(x) when is_list(x) do
+    Enum.map(x, &from_atom/1)
+  end
+  defp from_atom(x) when is_atom(x), do: "#{x}"
+  defp from_atom(x), do: x
 end

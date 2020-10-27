@@ -13,6 +13,13 @@ use Mix.Config
 config :mnogobot,
   ecto_repos: [Mnogobot.Repo]
 
+config :mnogobot_discord,
+  bot_config_path: "priv/actions_encoded.json",
+  dialogs: []
+
+config :nostrum,
+  token: System.get_env("DISCORD_TOKEN")
+
 config :mnogobot_web,
   ecto_repos: [Mnogobot.Repo],
   generators: [context_app: :mnogobot]

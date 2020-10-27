@@ -2,10 +2,12 @@ defmodule Mnogobot.Dialog.Action do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @derive Jason.Encoder
   embedded_schema do
-    field :action
+    field :action, :string, null: false
     field :store_to
     field :args, {:array, :string}
+    field :opts, :map, default: %{}
   end
 
   def changeset(module, attrs) do
@@ -13,11 +15,16 @@ defmodule Mnogobot.Dialog.Action do
     |> cast(attrs, [
       :action,
       :store_to,
-      :args
+      :args,
+      :opts
     ])
+    |> validate_required([:action])
   end
 
-  def apply_vars(%__MODULE__{action: action, args: args}, vars) do
+
+  def apply_vars(%__MODULE__{args: nil}, _), do: []
+  def apply_vars(%__MODULE__{action: action, args: args}, %{vars: vars, dialog: %{vars: dialog_vars}}) when is_binary(action) do
+    vars = vars ++ dialog_vars
     args
     |> Enum.map(fn x ->
       case x do
@@ -37,7 +44,7 @@ defmodule Mnogobot.Dialog.Action do
   end
   def apply_var(x, _), do: x
 
-  def parse_var_value(nil), do: "__UNDEFINED_VAR"
+  def parse_var_value(nil), do: "__UNDEFINED_VAR__"
   def parse_var_value(%{value: value}), do: "#{value}"
 
   def by_index(%{actions: actions}, index) do

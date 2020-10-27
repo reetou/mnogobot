@@ -6,18 +6,16 @@ defmodule Mnogobot do
   Contexts are also responsible for managing your data, regardless
   if it comes from the database, an external API or others.
   """
-  import MnogobotDSL.Dialog
+  import MnogobotDSL
 
   bot do
     dialog Hey do
-      say "hey"
-      say ["hello #{h}", "привет #{h}", "здравствуй #{h}"]
-      name = ask "Your name?"
-      balance = 12
-      ask "Hey #{name}, how are you?"
+      say "heyyy!"
       reply "Yo bro"
+      name = ask "Whats your name?"
+      balance = 12
       say "Hello #{name}, your balance is #{balance}"
-      image "https://imgur.com/123"
+      image "https://i.imgur.com/qo9nKso.jpeg"
       sticker ":yo:", only: [:slack]
     end
 

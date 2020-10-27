@@ -8,8 +8,10 @@ defmodule MnogobotDiscord.ConsumerSupervisor do
   """
 
   use Supervisor
+  require Logger
 
   def start_link(args) do
+    Logger.debug("Starting consumer supervisor")
     Supervisor.start_link(__MODULE__, args, name: __MODULE__)
   end
 

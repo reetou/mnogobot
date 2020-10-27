@@ -10,7 +10,7 @@ defmodule Mnogobot.Dialog.State do
     field :platform, :string, null: false
     field :channel_id, :string
     field :current_action_index, :integer, null: false
-    field :finished, :boolean
+    field :finished, :boolean, default: false
     embeds_one :dialog, Dialog
     embeds_many :vars, Var
   end
@@ -34,8 +34,35 @@ defmodule Mnogobot.Dialog.State do
   end
 
   def get(user_id, channel_id, platform) do
-    # Get by user id and platform
+    case :ets.lookup(:states, table_key(user_id, channel_id, platform)) do
+      [] -> nil
+      x ->
+        x
+        |> Enum.at(0)
+        |> Tuple.to_list()
+        |> Enum.at(1)
+    end
+  end
 
+  def write_or_delete_finished(state, user_id, channel_id, platform) do
+    case finished?(state) do
+      true -> delete(state, user_id, channel_id, platform)
+      false -> write(state, user_id, channel_id, platform)
+    end
+  end
+
+  def delete(state, user_id, channel_id, platform) do
+    :ets.delete(:states, table_key(user_id, channel_id, platform))
+    :deleted
+  end
+
+  def write(state, user_id, channel_id, platform) do
+    :ets.insert(:states, {table_key(user_id, channel_id, platform), state})
+    :updated
+  end
+
+  def table_key(user_id, channel_id, platform) do
+    "#{user_id}_#{channel_id}_#{platform}"
   end
 
   def next(old_state, message_text) do
@@ -55,18 +82,23 @@ defmodule Mnogobot.Dialog.State do
   def should_store?(%{store_to: nil}), do: false
   def should_store?(%{store_to: x}) when is_binary(x), do: true
 
-  def store_value(state, var_name, value) do
-    %Var{}
-    |> Var.changeset(%{var: var_name, value: value})
-    |> Var.format()
-    |> IO.inspect(label: "Storing variable")
-    state
+  def update_state_vars(%{vars: vars} = state, var_name, value) do
+    new_var = %Var{var: "#{var_name}", value: "#{value}"}
+    new_vars =
+      vars
+      |> Enum.find_index(fn %{var: name} -> name == var_name end)
+      |> case do
+          nil -> vars ++ List.wrap(new_var)
+          x ->
+            List.replace_at(vars, x, new_var)
+         end
+    put_in(state.vars, new_vars)
   end
 
   def store_reply(state, text) do
     case store_to(state) do
       nil -> state
-      x -> store_value(state, store_to(state), text)
+      x -> update_state_vars(state, store_to(state), text)
     end
   end
 

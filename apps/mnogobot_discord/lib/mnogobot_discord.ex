@@ -5,15 +5,29 @@ defmodule MnogobotDiscord do
 
   require Logger
   use Application
-  import Application
   alias MnogobotDiscord.Actions.Say
+  alias MnogobotDiscord.Actions.Reply
+  alias MnogobotDiscord.Actions.Image
   alias Mnogobot.Api
-  alias Mnogobot.Dialog.Action
-
-  @dialogs []
+  alias Mnogobot.Dialog
 
   @impl true
   def start(_type, _args) do
+    bot_config =
+      Application.fetch_env!(:mnogobot_discord, :bot_config_path)
+      |> File.read!()
+      |> Jason.decode!()
+    dialogs =
+      bot_config
+      |> Map.fetch!("data")
+      |> Enum.map(fn dialog ->
+        %Dialog{}
+        |> Dialog.changeset(dialog)
+        |> Dialog.format()
+      end)
+      |> IO.inspect(label: "Dialogs are")
+    :ok = Application.put_env(:mnogobot_discord, :dialogs, dialogs)
+    :ets.new(:states, [:set, :public, :named_table])
     children = [
       MnogobotDiscord.ConsumerSupervisor,
     ]
@@ -23,7 +37,11 @@ defmodule MnogobotDiscord do
 
   def actions_mappings do
     %{
-      "say" => Say
+      "say" => Say,
+      "sticker" => Say,
+      "ask" => Say,
+      "reply" => Reply,
+      "image" => Image
     }
   end
 
@@ -31,28 +49,24 @@ defmodule MnogobotDiscord do
     Map.get(actions_mappings(), action, :ignore)
   end
 
-  def trigger_dialog(dialogs, vars) when is_list(dialogs) do
-    Enum.map(dialogs, &trigger_dialog(&1, vars))
-  end
-
-  def trigger_dialog(%{actions: [action | t], vars: dialog_vars}, vars) do
-    trigger_action(action, vars)
-  end
-
-  def trigger_action(action, vars) do
+  def trigger_action(action, state, msg) do
     action
     |> get_action_module()
-    |> execute_action(Action.apply_vars(action, vars))
+    |> execute_action(Api.parse_action_args(action, state), msg)
   end
 
-  def trigger_dialog(state, %{content: text}) do
+  def trigger_dialog(state, %{} = msg) do
     state
-    |> Api.next_state(text)
     |> Api.current_action()
-    |> trigger_action(state.vars)
+    |> trigger_action(state, msg)
   end
 
-  defp execute_action(module, parsed_args) do
-    module.execute(parsed_args)
+  def dialogs do
+    Application.fetch_env!(:mnogobot_discord, :dialogs)
+  end
+
+  defp execute_action(:ignore, _, _), do: :ignore
+  defp execute_action(module, parsed_args, msg) do
+    module.execute(parsed_args, msg)
   end
 end
