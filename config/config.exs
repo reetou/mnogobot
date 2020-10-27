@@ -17,6 +17,13 @@ config :mnogobot_discord,
   bot_config_path: "priv/actions_encoded.json",
   dialogs: []
 
+config :mnogobot_telegram,
+  bot_config_path: "priv/actions_encoded.json",
+  dialogs: []
+
+config :nadia,
+  token: System.get_env("TELEGRAM_TOKEN")
+
 config :nostrum,
   token: System.get_env("DISCORD_TOKEN")
 
