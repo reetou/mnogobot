@@ -28,7 +28,7 @@ defmodule MnogobotDiscord.Consumer do
           :ignore
         state ->
           Logger.debug("Updating state")
-          Platform.trigger_dialog(state, msg)
+          Api.trigger_dialog(state, msg, Platform.actions_mappings())
       end
     end
   end

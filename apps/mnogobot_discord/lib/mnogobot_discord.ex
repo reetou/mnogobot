@@ -17,7 +17,7 @@ defmodule MnogobotDiscord do
       Application.fetch_env!(:mnogobot_discord, :bot_config_path)
       |> File.read!()
       |> Jason.decode!()
-    dialogs =
+    dialogs_cfg =
       bot_config
       |> Map.fetch!("data")
       |> Enum.map(fn dialog ->
@@ -26,7 +26,7 @@ defmodule MnogobotDiscord do
         |> Dialog.format()
       end)
       |> IO.inspect(label: "Dialogs are")
-    :ok = Application.put_env(:mnogobot_discord, :dialogs, dialogs)
+    :ok = Application.put_env(:mnogobot_discord, :dialogs, dialogs_cfg)
     :ets.new(:states, [:set, :public, :named_table])
     children = [
       MnogobotDiscord.ConsumerSupervisor,
@@ -45,28 +45,7 @@ defmodule MnogobotDiscord do
     }
   end
 
-  def get_action_module(%{action: action}) do
-    Map.get(actions_mappings(), action, :ignore)
-  end
-
-  def trigger_action(action, state, msg) do
-    action
-    |> get_action_module()
-    |> execute_action(Api.parse_action_args(action, state), msg)
-  end
-
-  def trigger_dialog(state, %{} = msg) do
-    state
-    |> Api.current_action()
-    |> trigger_action(state, msg)
-  end
-
   def dialogs do
     Application.fetch_env!(:mnogobot_discord, :dialogs)
-  end
-
-  defp execute_action(:ignore, _, _), do: :ignore
-  defp execute_action(module, parsed_args, msg) do
-    module.execute(parsed_args, msg)
   end
 end

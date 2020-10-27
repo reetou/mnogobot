@@ -2,6 +2,7 @@ defmodule Mnogobot.Api do
   alias Mnogobot.Dialog.State
   alias Mnogobot.Dialog.Action
   alias Mnogobot.Dialog
+  require Logger
 
   def init_state(user_id, channel_id, platform, text, dialogs) do
     with %Dialog{} = dialog <- Dialog.for_message(text, dialogs) do
@@ -15,7 +16,9 @@ defmodule Mnogobot.Api do
       }
       |> IO.inspect(label: "Gonna save inited state")
     else
-      nil -> :ignore
+      nil ->
+        Logger.error("No dialog found for message #{text}")
+        :ignore
     end
   end
 
@@ -50,6 +53,29 @@ defmodule Mnogobot.Api do
 
   def current_action(state) do
     Action.by_index(state.dialog, state.current_action_index)
+  end
+
+  def get_action_module(%{action: action}, mappings) do
+    Map.get(mappings, action, :ignore)
+  end
+
+  def trigger_dialog(state, %{} = msg, mappings) do
+    execute_action(msg, state, mappings)
+  end
+
+  defp execute_action(msg, state, mappings) do
+    args =
+      state
+      |> current_action()
+      |> parse_action_args(state)
+
+    state
+    |> current_action()
+    |> get_action_module(mappings)
+    |> case do
+         :ignore -> :ignore
+         module -> module.execute(args, msg, state)
+       end
   end
 
   defp reinit_existing_state(old_state, user_id, channel_id, platform, text, dialogs) do
