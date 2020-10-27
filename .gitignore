@@ -21,3 +21,4 @@ erl_crash.dump
 
 .idea
 .env
+apps/*/priv/actions_encoded.json
