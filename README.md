@@ -41,6 +41,14 @@ end
 - Install deps: `mix deps.get`
 - Write some code in `apps/mnogobot/lib/mnogobot.ex`
 - In `apps/mnogobot`, execute: `mix generate_actions`
-- Move generated `.json` file to `apps/mnogobot_DESIRED_INTEGRATION/priv/`
+- You will have something like that in terminal:
+```
+Created dialog with name dialog_hey_actions, containing 6 actions, 1 variables and trigger: nil
+Created dialog with name dialog_privet_actions, containing 1 actions, 0 variables and trigger: "!elo"
+Created dialog with name dialog_buy_actions, containing 1 actions, 0 variables and trigger: ["starts_with", "buy"]
+Created dialog with name dialog_sell_actions, containing 1 actions, 0 variables and trigger: nil
+File generated: actions_encoded.json
+```
+- Then move generated `.json` file to `apps/mnogobot_DESIRED_INTEGRATION/priv/`
 - Configure your bot in `config.exs`
 - Start your integration app and enjoy
