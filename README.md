@@ -40,7 +40,7 @@ end
 
 - Install deps: `mix deps.get`
 - Write some code in `apps/mnogobot/lib/mnogobot.ex`
-- In `apps/mnogobot`, execute: `mix generate_actions`
+- Execute: `mix generate_actions`
 - You will have something like that in terminal:
 ```
 Created dialog with name dialog_hey_actions, containing 6 actions, 1 variables and trigger: nil
